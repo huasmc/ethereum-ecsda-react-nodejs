@@ -5,6 +5,7 @@ import { Modal } from "react-responsive-modal";
 import "react-responsive-modal/styles.css";
 import { hashContent } from "../utils/hashContent";
 import { getAddress } from "../utils/getAddress";
+import { formatAddress } from "../utils/formatAddress";
 
 function Wallet({
 	balance,
@@ -81,7 +82,7 @@ function Wallet({
 			</label>
 
 			<p>
-				{isKeyInvalid ? "Invalid key" : `Address ${address.slice(0, 10)}`}...
+				{isKeyInvalid ? "Invalid key" : `Address ${formatAddress(address)}`}
 			</p>
 
 			<div className="balance">Balance: {balance}</div>

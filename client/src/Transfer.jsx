@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatAddress } from "../utils/formatAddress";
 import server from "./server";
 
 function Transfer({
@@ -58,6 +59,7 @@ function Transfer({
 					value={recipientAddress}
 					onChange={setValue(setRecipientAddress)}
 				/>
+				<p>{`Address ${formatAddress(recipientAddress)}`}</p>
 			</label>
 
 			<input
