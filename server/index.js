@@ -1,7 +1,6 @@
 const secp = require("ethereum-cryptography/secp256k1");
 const { utf8ToBytes, toHex } = require("ethereum-cryptography/utils");
 const { keccak256 } = require("ethereum-cryptography/keccak");
-const { Buffer } = require("buffer");
 const express = require("express");
 const app = express();
 const cors = require("cors");
@@ -10,7 +9,7 @@ const port = 3042;
 app.use(cors());
 app.use(express.json());
 
-const balances = [
+let wallets = [
 	{
 		privateKey:
 			"3745a663f79fe3a4a98d2e4f0b2000a007d037ab07c51e2b0b9d365542f1864b",
@@ -36,9 +35,7 @@ const balances = [
 
 app.get("/balance/:address", (req, res) => {
 	const { address } = req.params;
-	const { balance } = balances.find((wallet) => {
-		if (wallet.privateKey === address) return wallet;
-	});
+	const balance = getBalance(address);
 	res.send({ balance });
 });
 
@@ -49,23 +46,21 @@ app.post("/send", async (req, res) => {
 	const publicKey = new Uint8Array(Object.values(publicKeyObject));
 	const transactionInBytes = utf8ToBytes(JSON.stringify(transaction));
 	const hashedTransaction = keccak256(transactionInBytes);
-
+	const { sender, recipient, amount } = transaction;
 	const expectedPublicKey = secp.recoverPublicKey(
 		hashedTransaction,
 		signature,
 		recoveryBit
 	);
-	if (toHex(expectedPublicKey) === toHex(publicKey)) {
-		const { sender, recipient, amount } = transaction;
-		setInitialBalance(sender);
-		setInitialBalance(recipient);
 
-		if (balances[sender] < amount) {
+	if (toHex(expectedPublicKey) === toHex(publicKey)) {
+		if (getBalance(sender) < amount) {
 			res.status(400).send({ message: "Not enough funds!" });
 		} else {
-			balances[sender] -= amount;
-			balances[recipient] += amount;
-			res.send({ balance: balances[sender] });
+			decreaseBalance(sender, amount);
+			increaseBalance(recipient, amount);
+			console.log(wallets);
+			res.send({ balance: getBalance(sender) });
 		}
 	} else res.send("Unauthorized");
 });
@@ -74,8 +69,27 @@ app.listen(port, () => {
 	console.log(`Listening on port ${port}!`);
 });
 
-function setInitialBalance(address) {
-	if (!balances[address]) {
-		balances[address] = 0;
-	}
+function getBalance(address) {
+	const { balance } = wallets.find(
+		(wallet) => wallet.privateKey === address || wallet.publicKey === address
+	) || { balance: 0 };
+	return balance;
+}
+
+function decreaseBalance(address, amount) {
+	wallets = wallets.map((wallet) => {
+		if (wallet.privateKey === address || wallet.publicKey === address) {
+			wallet.balance -= amount;
+		}
+		return wallet;
+	});
+}
+
+function increaseBalance(address, amount) {
+	wallets = wallets.map((wallet) => {
+		if (wallet.privateKey === address || wallet.publicKey === address) {
+			wallet.balance += amount;
+		}
+		return wallet;
+	});
 }
