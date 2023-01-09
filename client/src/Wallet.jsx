@@ -1,28 +1,70 @@
 import { useState } from "react";
 import server from "./server";
 import * as secp from "ethereum-cryptography/secp256k1";
-import { toHex } from "ethereum-cryptography/utils";
+import { Modal } from "react-responsive-modal";
+import "react-responsive-modal/styles.css";
+import { hashContent } from "../utils/hashContent";
+import { getAddress } from "../utils/getAddress";
 
-function Wallet({ privateKey, setPrivateKey, balance, setBalance }) {
+function Wallet({
+	balance,
+	setBalance,
+	modalOpen,
+	setModalOpen,
+	transaction,
+	setSignature,
+}) {
 	const [isKeyInvalid, setIsKeyInvalid] = useState(false);
+	const [privateKey, setPrivateKey] = useState("");
 	const [address, setAddress] = useState("");
-	async function onChange(evt) {
-		const privateKey = evt.target.value;
-		if (privateKey.length >= 64) {
-			setPrivateKey(privateKey);
-			let publicKey = secp.getPublicKey(privateKey);
-			setAddress(toHex(publicKey));
-			setIsKeyInvalid(false);
-		} else setIsKeyInvalid(true);
-		setPrivateKey(privateKey);
-		if (privateKey) {
+
+	async function onAddressChange(evt) {
+		const address = evt.target.value;
+		setAddress(address);
+		if (address) {
 			const {
 				data: { balance },
-			} = await server.get(`balance/${privateKey}`);
+			} = await server.get(`balance/${address}`);
 			setBalance(balance);
 		} else {
 			setBalance(0);
 		}
+	}
+
+	async function onPrivateKeyChange(evt) {
+		const privateKey = evt.target.value;
+		setPrivateKey(privateKey);
+		if (privateKey) setIsKeyInvalid(false);
+	}
+
+	async function sign() {
+		const publicKey = secp.getPublicKey(privateKey);
+		if (getAddress(publicKey) !== address) {
+			setIsKeyInvalid(true);
+			setModalOpen(false);
+			setPrivateKey(null);
+			return;
+		}
+		const { amount, recipientAddress } = transaction;
+		if (recipientAddress && amount) {
+			const hashedTransaction = hashContent(JSON.stringify(transaction));
+			const [signature, recoveryBit] = await secp.sign(
+				hashedTransaction,
+				privateKey,
+				{
+					recovered: true,
+				}
+			);
+			setSignature({
+				signatureObject: signature,
+				transaction,
+				recoveryBit,
+			});
+		}
+	}
+
+	function handleCloseModal() {
+		setModalOpen(false);
 	}
 
 	return (
@@ -30,22 +72,44 @@ function Wallet({ privateKey, setPrivateKey, balance, setBalance }) {
 			<h1>Your Wallet</h1>
 
 			<label>
-				Private Key
+				Wallet Address
 				<input
-					placeholder="(Testing purposes) add private key"
-					value={privateKey}
-					onChange={onChange}
-				></input>
+					placeholder="Add wallet address"
+					value={address}
+					onChange={onAddressChange}
+				/>
 			</label>
 
-			<p>Address {address.slice(0, 10)}...</p>
+			<p>
+				{isKeyInvalid ? "Invalid key" : `Address ${address.slice(0, 10)}`}...
+			</p>
 
 			<div className="balance">Balance: {balance}</div>
-			{isKeyInvalid && privateKey.length ? (
-				<p style={{ color: "red" }}>Invalid Key</p>
-			) : (
-				""
-			)}
+			{isKeyInvalid ? <p style={{ color: "red" }}>Invalid Key</p> : ""}
+			<Modal open={modalOpen} onClose={handleCloseModal} center>
+				<div>
+					<label>
+						Private Key
+						<input
+							placeholder="(Never add private key) use mock private key"
+							defaultValue={privateKey}
+							onChange={onPrivateKeyChange}
+							type="password"
+						/>
+					</label>
+					<button
+						type="button"
+						className="button"
+						onClick={sign}
+						style={{
+							backgroundColor: privateKey && address ? "" : "gray",
+						}}
+						disabled={!privateKey || privateKey.length < 64}
+					>
+						Sign Transaction
+					</button>
+				</div>
+			</Modal>
 		</div>
 	);
 }

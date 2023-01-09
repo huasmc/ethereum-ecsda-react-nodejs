@@ -5,17 +5,28 @@ import { useState } from "react";
 
 function App() {
 	const [balance, setBalance] = useState(0);
-	const [privateKey, setPrivateKey] = useState("");
+	const [signature, setSignature] = useState();
+	const [transaction, setTransaction] = useState();
+	const [modalOpen, setModalOpen] = useState(false);
 
 	return (
 		<div className="app">
 			<Wallet
 				balance={balance}
 				setBalance={setBalance}
-				privateKey={privateKey}
-				setPrivateKey={setPrivateKey}
+				signature={signature}
+				setSignature={setSignature}
+				modalOpen={modalOpen}
+				setModalOpen={setModalOpen}
+				transaction={transaction}
 			/>
-			<Transfer setBalance={setBalance} privateKey={privateKey} />
+			<Transfer
+				setBalance={setBalance}
+				signature={signature}
+				setModalOpen={setModalOpen}
+				setTransaction={setTransaction}
+				setSignature={setSignature}
+			/>
 		</div>
 	);
 }
